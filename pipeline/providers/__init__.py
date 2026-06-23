@@ -44,14 +44,37 @@ def get_providers() -> ProviderBundle:
 
     # --- REAL providers -----------------------------------------------------
     from .images_aggregator import AggregatorImageProvider
-    from .llm_anthropic import AnthropicLLMProvider
     from .music_aggregator import AggregatorMusicProvider
     from .tts_elevenlabs import ElevenLabsTTSProvider
     from .video_aggregator import AggregatorVideoProvider
 
-    llm = AnthropicLLMProvider()
+    llm = _build_llm(settings.llm_provider)
     image = AggregatorImageProvider()
     video = AggregatorVideoProvider()
     tts = ElevenLabsTTSProvider()
     music = AggregatorMusicProvider()
     return ProviderBundle(llm=llm, image=image, video=video, tts=tts, music=music)
+
+
+def _build_llm(provider: str) -> LLMProvider:
+    """Select the language-model adapter from ``LLM_PROVIDER``.
+
+    Adding a new LLM vendor is just a new adapter implementing ``LLMProvider``
+    plus one line here -- no pipeline step changes.
+    """
+    name = (provider or "anthropic").lower()
+    if name == "anthropic":
+        from .llm_anthropic import AnthropicLLMProvider
+
+        return AnthropicLLMProvider()
+    if name == "gemini":
+        from .llm_gemini import GeminiLLMProvider
+
+        return GeminiLLMProvider()
+    if name == "openai":
+        from .llm_openai import OpenAILLMProvider
+
+        return OpenAILLMProvider()
+    raise RuntimeError(
+        f"Unknown LLM_PROVIDER '{provider}'. Supported: anthropic, gemini, openai."
+    )

@@ -43,6 +43,8 @@ def _get_int(name: str, default: int) -> int:
 class Settings:
     # Keys (server-side only)
     anthropic_api_key: str = field(default_factory=lambda: _get("ANTHROPIC_API_KEY"))
+    gemini_api_key: str = field(default_factory=lambda: _get("GEMINI_API_KEY"))
+    openai_api_key: str = field(default_factory=lambda: _get("OPENAI_API_KEY"))
     aggregator_api_key: str = field(default_factory=lambda: _get("AGGREGATOR_API_KEY"))
     elevenlabs_api_key: str = field(default_factory=lambda: _get("ELEVENLABS_API_KEY"))
 
@@ -101,8 +103,15 @@ class Settings:
         if self.is_mock:
             return []
         missing: List[str] = []
-        if self.llm_provider == "anthropic" and not self.anthropic_api_key:
-            missing.append("ANTHROPIC_API_KEY")
+        llm_key_by_provider = {
+            "anthropic": ("ANTHROPIC_API_KEY", self.anthropic_api_key),
+            "gemini": ("GEMINI_API_KEY", self.gemini_api_key),
+            "openai": ("OPENAI_API_KEY", self.openai_api_key),
+        }
+        if self.llm_provider in llm_key_by_provider:
+            key_name, key_value = llm_key_by_provider[self.llm_provider]
+            if not key_value:
+                missing.append(key_name)
         aggregator_used = any(
             p == "aggregator"
             for p in (self.image_provider, self.video_provider, self.music_provider)

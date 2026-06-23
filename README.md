@@ -129,6 +129,23 @@ download button. (Drop the `RUN_MODE=mock` prefix once your real keys are set in
   at startup and the server **fails fast** with a readable error if any are
   missing.
 
+### Choosing the language model
+
+The LLM passes (condensation + shot list) sit behind a swappable adapter.
+Set `LLM_PROVIDER` and the matching key + model id:
+
+| `LLM_PROVIDER` | Key | Example `LLM_MODEL` |
+|----------------|-----|---------------------|
+| `anthropic` (default) | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` |
+| `gemini` | `GEMINI_API_KEY` | `gemini-2.0-flash` |
+| `openai` | `OPENAI_API_KEY` | `gpt-4o` |
+
+Only the key for the selected provider is required. The OpenAI adapter also
+accepts `OPENAI_BASE_URL` for OpenAI-compatible gateways (Azure, OpenRouter, a
+local server). Adding another vendor is one new adapter implementing
+`LLMProvider` plus one line in `pipeline/providers/__init__.py` — no pipeline
+step changes.
+
 Only switch to real mode after the mock test passes.
 
 ---
