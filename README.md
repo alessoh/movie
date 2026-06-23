@@ -40,6 +40,8 @@ movie or a clear terminal error, and never waits for a human (see
 
 ### 1. Install
 
+**macOS / Linux**
+
 ```bash
 # System dependency: FFmpeg must be on PATH.
 #   macOS:   brew install ffmpeg
@@ -48,6 +50,50 @@ movie or a clear terminal error, and never waits for a human (see
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+```
+
+**Windows (PowerShell)**
+
+```powershell
+# System dependency: FFmpeg must be on PATH. Install it with one of:
+#   winget install --id=Gyan.FFmpeg -e
+#   choco install ffmpeg
+# (or download from https://www.gyan.dev/ffmpeg/builds/ and add the bin\
+#  folder to your PATH). Verify with:  ffmpeg -version
+
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env
+```
+
+> If PowerShell blocks the activation script with a "running scripts is
+> disabled" error, run once:
+> `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
+
+**Windows (Command Prompt / cmd.exe)**
+
+```bat
+:: Install FFmpeg as above (winget install --id=Gyan.FFmpeg -e), then:
+py -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+copy .env.example .env
+```
+
+On Windows, set `RUN_MODE` per command instead of the inline `RUN_MODE=mock`
+prefix used in the examples below:
+
+```powershell
+# PowerShell
+$env:RUN_MODE = "mock"; python -m pytest tests/ -s
+$env:RUN_MODE = "mock"; python main.py
+```
+
+```bat
+:: Command Prompt
+set RUN_MODE=mock && python -m pytest tests/ -s
+set RUN_MODE=mock && python main.py
 ```
 
 ### 2. Run the free mock test first (no keys, no cost)
