@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Novel → Movie</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>Novel&nbsp;→&nbsp;Movie</h1>
+      <p class="tagline">Upload a novel and we'll condense it into a two-minute film —
+        real generated video clips, one narrator, one score. Free, no login.</p>
+    </header>
+
+    <!-- Upload view -->
+    <section id="upload-view" class="card">
+      <div id="dropzone" class="dropzone">
+        <input type="file" id="file-input" accept=".txt,.md,.pdf,.docx,.doc" hidden />
+        <div class="dz-inner">
+          <div class="dz-icon">📖</div>
+          <p class="dz-title">Drop your novel here</p>
+          <p class="dz-sub">or <button type="button" id="browse-btn" class="link">browse</button>
+            &nbsp;·&nbsp; .txt, .docx, or .pdf</p>
+          <p id="file-name" class="file-name"></p>
+        </div>
+      </div>
+      <button id="start-btn" class="primary" disabled>Make my movie</button>
+      <p id="upload-error" class="error" role="alert"></p>
+    </section>
+
+    <!-- Progress view -->
+    <section id="progress-view" class="card hidden">
+      <h2 id="phase-label">Starting…</h2>
+      <div class="bar"><div id="bar-fill" class="bar-fill"></div></div>
+      <p id="progress-pct" class="pct">0%</p>
+      <p class="hint">Real video generation is slow — this can take several minutes.
+        Keep this tab open.</p>
+      <ul id="log" class="log"></ul>
+    </section>
+
+    <!-- Result view -->
+    <section id="result-view" class="card hidden">
+      <h2>🎬 Your movie is ready</h2>
+      <video id="player" controls playsinline></video>
+      <a id="download-btn" class="primary" download>Download MP4</a>
+    </section>
+
+    <!-- Error view -->
+    <section id="error-view" class="card hidden">
+      <h2>Something went wrong</h2>
+      <p id="error-message" class="error"></p>
+      <button id="retry-btn" class="primary" onclick="location.reload()">Start over</button>
+    </section>
+
+    <footer>
+      <p>Your upload and the finished film are deleted automatically after a short time.</p>
+    </footer>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
