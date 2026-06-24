@@ -38,22 +38,39 @@ def generate_narration(
         if progress:
             progress(n, total, f"Recording narration {n} of {total}")
         out_path = narr_dir / f"narr_{shot['index']:02d}.mp3"
-        audio = _synthesize_with_retry(tts, text, out_path)
+        audio, err = _synthesize_with_retry(tts, text, out_path)
         if audio is None and progress:
-            progress(n, total, f"Narration for shot {shot['index']} failed; shot will be silent.")
+            reason = f": {err}" if err else ""
+            progress(n, total, f"Narration for shot {shot['index']} failed; shot will be silent{reason}")
         r["narration_audio"] = audio
     return clip_results
 
 
-def _synthesize_with_retry(tts: TTSProvider, text: str, out_path: Path) -> Optional[Path]:
+def _synthesize_with_retry(tts: TTSProvider, text: str, out_path: Path):
+    """Return (audio_path, last_error)."""
     attempts = settings.max_retries_per_shot + 1
+    last_error = None
     for attempt in range(attempts):
         try:
             tts.synthesize(text, out_path)
             if out_path.exists() and out_path.stat().st_size > 0:
-                return out_path
-        except Exception:
-            pass
+                return out_path, None
+            last_error = "empty audio returned"
+        except Exception as exc:  # noqa: BLE001 - captured and surfaced
+            last_error = _short_error(exc)
         if attempt < attempts - 1:
             time.sleep(1.5 * (attempt + 1))
-    return None
+    return None, last_error
+
+
+def _short_error(exc: Exception) -> str:
+    import httpx
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        body = ""
+        try:
+            body = exc.response.text[:200]
+        except Exception:
+            pass
+        return f"HTTP {exc.response.status_code}: {body}"
+    return f"{exc.__class__.__name__}: {exc}"[:200]

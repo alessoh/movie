@@ -121,7 +121,8 @@ def _run(token: str, upload_path: str, work_dir: Path) -> None:
         if not r.get("dropped")
     )
     music_path = step09_music.generate_music(
-        providers.music, shot_list, total_duration, work_dir
+        providers.music, shot_list, total_duration, work_dir,
+        log=lambda m: store.add_message(token, m),
     )
     if music_path is None:
         store.add_message(token, "Music generation failed; the film will play without a score.")
