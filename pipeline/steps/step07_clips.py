@@ -40,7 +40,8 @@ def generate_clips(
             progress(n, total, f"Filming shot {n} of {total}")
         out_path = clips_dir / f"shot_{shot['index']:02d}.mp4"
         anchor = anchor_for_shot(shot, anchors)
-        clip, last_error = _generate_with_retry(video, shot, anchor, out_path)
+        prompt = build_clip_prompt(shot_list, shot)
+        clip, last_error = _generate_with_retry(video, prompt, shot, anchor, out_path)
 
         if clip is not None:
             results.append(
@@ -68,8 +69,42 @@ def generate_clips(
     return results
 
 
+def build_clip_prompt(shot_list: dict, shot: dict) -> str:
+    """Compose the text prompt for one clip.
+
+    The shot's ``visual_prompt`` only describes that frame; on its own it loses
+    the film's overall look and any character's stable appearance, so clips
+    drift between shots. We fold in the global style and the appearance of each
+    character actually present in the shot so every clip stays on-model.
+    """
+    parts: List[str] = []
+    visual = (shot.get("visual_prompt") or "").strip()
+    if visual:
+        parts.append(visual)
+
+    char_by_id = {c.get("id"): c for c in shot_list.get("characters", [])}
+    appearances: List[str] = []
+    for cid in shot.get("character_ids", []):
+        c = char_by_id.get(cid)
+        if not c:
+            continue
+        name = (c.get("name") or "").strip()
+        appearance = (c.get("appearance_prompt") or "").strip()
+        if appearance:
+            appearances.append(f"{name} — {appearance}" if name else appearance)
+    if appearances:
+        parts.append("Featuring " + "; ".join(appearances) + ".")
+
+    style = (shot_list.get("style_prompt") or "").strip()
+    if style:
+        parts.append(f"Overall style: {style}.")
+
+    parts.append("Cinematic, consistent look, no text, no watermark, no subtitles.")
+    return " ".join(parts)
+
+
 def _generate_with_retry(
-    video: VideoProvider, shot: dict, anchor: Optional[Path], out_path: Path
+    video: VideoProvider, prompt: str, shot: dict, anchor: Optional[Path], out_path: Path
 ) -> tuple[Optional[Path], Optional[str]]:
     """Return (clip_path, last_error). ``last_error`` is a short reason string
     when all attempts fail, so the orchestrator can log why."""
@@ -78,7 +113,7 @@ def _generate_with_retry(
     last_error: Optional[str] = None
     for attempt in range(attempts):
         try:
-            video.generate_clip(shot["visual_prompt"], anchor, duration, out_path)
+            video.generate_clip(prompt, anchor, duration, out_path)
             if out_path.exists() and out_path.stat().st_size > 0 and ff.probe_duration(out_path) > 0.1:
                 return out_path, None
             last_error = "provider returned an empty or unreadable clip"

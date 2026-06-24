@@ -64,6 +64,7 @@ Return ONLY this JSON shape:
     {{
       "index": 1,
       "duration_seconds": {shot_len},
+      "shot_type": "establishing | character | action",
       "visual_prompt": "what the camera sees in this shot",
       "narration": "one sentence the narrator speaks over this shot",
       "character_ids": ["c1"]
@@ -74,6 +75,13 @@ Return ONLY this JSON shape:
 Rules:
 - One shot per beat, in order, index starting at 1.
 - Each shot's duration_seconds should be {shot_len}.
+- shot_type classifies the framing so we seed the right reference image:
+  - "establishing" = a wide location/scenery shot (landscape, spaceship,
+    a room) where no single character fills the frame.
+  - "character" = a close or medium shot centered on a named person.
+  - "action" = characters doing something within a scene.
+  For "establishing" shots, leave character_ids empty unless a character is
+  genuinely the subject of the frame.
 - Every character_id referenced must exist in the characters array.
 - Keep 1-4 named characters total; reuse the same ids across shots.
 - narration is exactly one spoken sentence.
@@ -130,4 +138,10 @@ def _normalize(data: dict, cfg=None) -> dict:
         sh["visual_prompt"] = str(sh.get("visual_prompt", "")).strip()
         cids = sh.get("character_ids") or []
         sh["character_ids"] = [c for c in cids if c in char_ids]
+        # Coerce shot_type to a known value; infer a sane default if the model
+        # omitted it (characters present -> character shot, else establishing).
+        st = str(sh.get("shot_type", "")).strip().lower()
+        if st not in ("establishing", "character", "action"):
+            st = "character" if sh["character_ids"] else "establishing"
+        sh["shot_type"] = st
     return data

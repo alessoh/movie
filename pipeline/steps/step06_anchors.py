@@ -71,11 +71,28 @@ def build_anchors(
 
 
 def anchor_for_shot(shot: dict, anchors: Dict[str, object]) -> Optional[Path]:
-    """Pick the best reference image for a shot: its first present character
-    portrait, else the global style frame."""
+    """Pick the best image-to-video seed for a shot.
+
+    The seed frame steers the whole clip, so it must match the framing: a
+    character portrait makes a person-centric shot coherent, but seeding a wide
+    establishing shot ("a spaceship over a planet") from a face makes the model
+    try to morph that face into the scene. So establishing shots prefer the
+    neutral style frame; character/action shots prefer a portrait and fall back
+    to the style frame.
+    """
     char_map: Dict[str, Path] = anchors.get("characters", {})  # type: ignore[assignment]
+    style = anchors.get("style")
+    style_path = style if isinstance(style, Path) else None
+
+    portrait = _first_portrait(shot, char_map)
+    if (shot.get("shot_type") or "").lower() == "establishing":
+        return style_path or portrait
+    return portrait or style_path
+
+
+def _first_portrait(shot: dict, char_map: Dict[str, Path]) -> Optional[Path]:
+    """First available character portrait for the characters in this shot."""
     for cid in shot.get("character_ids", []):
         if cid in char_map:
             return char_map[cid]
-    style = anchors.get("style")
-    return style if isinstance(style, Path) else None
+    return None
