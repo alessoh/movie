@@ -29,44 +29,70 @@
 
       <details id="advanced" class="advanced">
         <summary>Advanced settings (optional)</summary>
-        <div class="settings-grid">
-          <label class="full">
-            <span>Visual style</span>
-            <input type="text" id="opt-style" maxlength="300"
-                   placeholder="e.g. moody noir, neon-lit, watercolor, 1980s film grain" />
-            <small>Steers the look of every shot.</small>
-          </label>
 
-          <label>
-            <span>Number of shots</span>
-            <input type="number" id="opt-shot-count" min="6" max="20" step="1" />
-            <small>6–20. More shots = denser story.</small>
-          </label>
+        <fieldset class="settings-group">
+          <legend>Length &amp; pacing</legend>
+          <div class="settings-grid">
+            <label class="full">
+              <span class="row-head">Movie length <output id="out-duration" class="badge">2:00</output></span>
+              <input type="range" id="opt-duration" min="30" max="300" step="15" value="120" />
+              <small>30&nbsp;s – 5&nbsp;min. Sets how long the finished film runs.</small>
+            </label>
 
-          <label>
-            <span>Seconds per shot</span>
-            <input type="number" id="opt-shot-length" min="4" max="10" step="1" />
-            <small>4–10 seconds.</small>
-          </label>
+            <label>
+              <span>Number of shots</span>
+              <input type="number" id="opt-shot-count" min="6" max="20" step="1" />
+              <small>Blank = auto-fit the length above. 6–20.</small>
+            </label>
 
-          <label>
-            <span>Narrator voice ID</span>
-            <input type="text" id="opt-voice" maxlength="120" placeholder="ElevenLabs voice ID" />
-            <small>Blank = default voice.</small>
-          </label>
+            <label>
+              <span>Seconds per shot</span>
+              <input type="number" id="opt-shot-length" min="4" max="10" step="1" />
+              <small>4–10 seconds.</small>
+            </label>
+          </div>
+        </fieldset>
 
-          <label>
-            <span>Music model / mood</span>
-            <input type="text" id="opt-music" maxlength="200" placeholder="music model id" />
-            <small>Background score model.</small>
-          </label>
+        <fieldset class="settings-group">
+          <legend>Look</legend>
+          <div class="settings-grid">
+            <label class="full">
+              <span>Visual style</span>
+              <input type="text" id="opt-style" maxlength="300"
+                     placeholder="e.g. moody noir, neon-lit, watercolor, 1980s film grain" />
+              <small>Steers the look of every shot.</small>
+            </label>
 
-          <label class="full">
-            <span>Video model</span>
-            <input type="text" id="opt-video" maxlength="200" placeholder="image-to-video model id" />
-            <small>Changes how closely shots follow the story. Blank = default.</small>
-          </label>
-        </div>
+            <label class="full">
+              <span>Video model</span>
+              <input type="text" id="opt-video" maxlength="200" placeholder="image-to-video model id" />
+              <small>Changes how closely shots follow the story. Blank = default.</small>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="settings-group">
+          <legend>Audio</legend>
+          <div class="settings-grid">
+            <label class="full">
+              <span class="row-head">Background music volume <output id="out-music-vol" class="badge">28%</output></span>
+              <input type="range" id="opt-music-vol" min="0" max="100" step="1" value="28" />
+              <small>0% mutes the score; higher sits the music louder under the narration.</small>
+            </label>
+
+            <label>
+              <span>Narrator voice ID</span>
+              <input type="text" id="opt-voice" maxlength="120" placeholder="ElevenLabs voice ID" />
+              <small>Blank = default voice.</small>
+            </label>
+
+            <label>
+              <span>Music model / mood</span>
+              <input type="text" id="opt-music" maxlength="200" placeholder="music model id" />
+              <small>Background score model.</small>
+            </label>
+          </div>
+        </fieldset>
       </details>
 
       <button id="start-btn" class="primary" disabled>Make my movie</button>

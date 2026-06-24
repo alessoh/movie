@@ -29,6 +29,7 @@ def assemble(
     music_path: Optional[Path],
     work_dir: Path,
     out_path: Path,
+    music_gain: float = MUSIC_GAIN,
 ) -> Path:
     seg_dir = work_dir / "segments"
     seg_dir.mkdir(parents=True, exist_ok=True)
@@ -57,7 +58,7 @@ def assemble(
         _concat_with_crossfades(segments, durations, concat_path)
 
     # --- Stage 3: music bed + loudness normalization ----------------------
-    _mix_music_and_normalize(concat_path, music_path, out_path)
+    _mix_music_and_normalize(concat_path, music_path, out_path, music_gain)
 
     # --- Verify -----------------------------------------------------------
     if not out_path.exists() or out_path.stat().st_size == 0:
@@ -166,9 +167,19 @@ def _concat_with_crossfades(segments: List[Path], durations: List[float], out: P
     )
 
 
-def _mix_music_and_normalize(concat_path: Path, music_path: Optional[Path], out: Path) -> None:
+def _mix_music_and_normalize(
+    concat_path: Path,
+    music_path: Optional[Path],
+    out: Path,
+    music_gain: float = MUSIC_GAIN,
+) -> None:
     """Lay ducked music under the narration track and loudness-normalize."""
     loudnorm = "loudnorm=I=-16:TP=-1.5:LRA=11"
+
+    # A non-positive gain means the visitor turned the music off entirely:
+    # treat it exactly like "no music" so we skip the loop+mix work.
+    if music_gain <= 0:
+        music_path = None
 
     if music_path is None or not Path(music_path).exists():
         # No music: just normalize loudness.
@@ -189,7 +200,7 @@ def _mix_music_and_normalize(concat_path: Path, music_path: Optional[Path], out:
     # trims the result to the video length so it covers the whole film.
     filter_complex = (
         f"[0:a]asplit=2[na][key];"
-        f"[1:a]volume={MUSIC_GAIN},aresample={ff.SAMPLE_RATE}[mus];"
+        f"[1:a]volume={music_gain},aresample={ff.SAMPLE_RATE}[mus];"
         f"[mus][key]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=300[musd];"
         f"[na][musd]amix=inputs=2:duration=first:dropout_transition=0,{loudnorm}[a]"
     )

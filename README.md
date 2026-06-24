@@ -182,9 +182,15 @@ them per movie via the **Advanced settings** panel (below).
 Before pressing **Make my movie**, the visitor can open **Advanced settings**
 to tune one movie without touching `.env`:
 
+- **Movie length** (30 s – 5 min) — a slider that sets how long the finished
+  film runs. Leave **Number of shots** blank and the server auto-fits the shot
+  count to this length at the chosen seconds-per-shot.
+- **Number of shots** (6–20) and **seconds per shot** (4–10) — the movie shape.
+  An explicit shot count overrides the length-based auto-fit.
 - **Visual style** — free-text direction woven into the style + every shot
   prompt (e.g. "moody noir, neon-lit, watercolor").
-- **Number of shots** (6–20) and **seconds per shot** (4–10) — the movie shape.
+- **Background music volume** (0–100%) — a slider for how loud the ducked score
+  sits under the narration. 0% drops the music entirely.
 - **Narrator voice ID** — override `TTS_VOICE_ID` for this movie.
 - **Music model** and **video model** — swap models per movie.
 

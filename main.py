@@ -17,6 +17,7 @@ import asyncio
 import json
 import threading
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -29,11 +30,32 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from config import WEB_DIR, settings
+from config import STORAGE_DIR, WEB_DIR, settings
 from pipeline.orchestrator import run_job
 from pipeline.state import store
 
-app = FastAPI(title="novel-to-movie")
+
+# --------------------------------------------------------------------------- #
+# Lifespan: fail fast if required keys are missing, sweep stale storage, then
+# start the background cleanup loop.
+# --------------------------------------------------------------------------- #
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    missing = settings.required_keys_present()
+    if missing:
+        raise RuntimeError(
+            "Missing required environment keys for RUN_MODE=real: "
+            + ", ".join(missing)
+            + ". Set them in .env, or run with RUN_MODE=mock for a free test."
+        )
+    mode = "MOCK" if settings.is_mock else "REAL"
+    print(f"[novel-to-movie] starting in {mode} mode")
+    _purge_orphaned_storage()
+    _start_cleanup_thread()
+    yield
+
+
+app = FastAPI(title="novel-to-movie", lifespan=lifespan)
 
 
 class StartOptions(BaseModel):
@@ -46,28 +68,13 @@ class StartOptions(BaseModel):
     video_model: str | None = None
     music_model: str | None = None
     tts_voice_id: str | None = None
+    target_duration_seconds: int | None = None
     shot_count: int | None = None
     shot_length_seconds: int | None = None
+    music_volume: float | None = None
 
 ALLOWED_SUFFIXES = {".txt", ".md", ".pdf", ".docx", ".doc"}
 MAX_UPLOAD_BYTES = settings.max_upload_mb * 1024 * 1024
-
-
-# --------------------------------------------------------------------------- #
-# Startup: fail fast if required keys are missing in real mode.
-# --------------------------------------------------------------------------- #
-@app.on_event("startup")
-async def _startup() -> None:
-    missing = settings.required_keys_present()
-    if missing:
-        raise RuntimeError(
-            "Missing required environment keys for RUN_MODE=real: "
-            + ", ".join(missing)
-            + ". Set them in .env, or run with RUN_MODE=mock for a free test."
-        )
-    mode = "MOCK" if settings.is_mock else "REAL"
-    print(f"[novel-to-movie] starting in {mode} mode")
-    _start_cleanup_thread()
 
 
 # --------------------------------------------------------------------------- #
@@ -121,8 +128,10 @@ async def get_config() -> JSONResponse:
             "video_model": settings.video_model,
             "music_model": settings.music_model,
             "tts_voice_id": settings.tts_voice_id,
+            "target_duration_seconds": settings.shot_count * settings.shot_length_seconds,
             "shot_count": settings.shot_count,
             "shot_length_seconds": settings.shot_length_seconds,
+            "music_volume": settings.music_volume,
         }
     )
 
@@ -211,6 +220,31 @@ async def movie(token: str) -> FileResponse:
         media_type="video/mp4",
         filename="your-movie.mp4",
     )
+
+
+# --------------------------------------------------------------------------- #
+# Startup purge: delete session folders left on disk from previous runs.
+# The running sweep below only knows about in-memory sessions, so folders
+# orphaned while the server was down would otherwise accumulate forever.
+# --------------------------------------------------------------------------- #
+def _purge_orphaned_storage() -> None:
+    ttl = settings.session_ttl_minutes * 60
+    now = time.time()
+    swept = 0
+    try:
+        for child in STORAGE_DIR.iterdir():
+            if not child.is_dir():
+                continue
+            try:
+                if now - child.stat().st_mtime > ttl:
+                    _rmtree(child)
+                    swept += 1
+            except OSError:
+                continue
+    except FileNotFoundError:
+        return
+    if swept:
+        print(f"[novel-to-movie] swept {swept} stale session folder(s) on startup")
 
 
 # --------------------------------------------------------------------------- #

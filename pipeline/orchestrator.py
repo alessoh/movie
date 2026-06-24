@@ -71,13 +71,33 @@ def _job_settings(options: dict):
         except (TypeError, ValueError):
             return None
 
+    def _float(key, lo, hi):
+        val = options.get(key)
+        try:
+            return max(lo, min(hi, float(val)))
+        except (TypeError, ValueError):
+            return None
+
+    target_duration = _int("target_duration_seconds", 30, 300)
+    shot_count = _int("shot_count", 6, 20)
+    shot_length = _int("shot_length_seconds", 4, 10)
+
+    # Movie length is the high-level dial: when the visitor sets it but leaves
+    # the explicit shot count blank, derive a shot count that fills that length
+    # at the chosen (or default) seconds-per-shot. An explicit shot count wins.
+    if target_duration is not None and shot_count is None:
+        per_shot = shot_length or settings.shot_length_seconds
+        shot_count = max(6, min(20, round(target_duration / max(1, per_shot))))
+
     for key, val in (
         ("video_model", _str("video_model")),
         ("music_model", _str("music_model")),
         ("tts_voice_id", _str("tts_voice_id", 120)),
         ("style_guidance", _str("style_guidance", 300)),
-        ("shot_count", _int("shot_count", 6, 20)),
-        ("shot_length_seconds", _int("shot_length_seconds", 4, 10)),
+        ("target_duration_seconds", target_duration),
+        ("shot_count", shot_count),
+        ("shot_length_seconds", shot_length),
+        ("music_volume", _float("music_volume", 0.0, 1.0)),
     ):
         if val is not None:
             overrides[key] = val
@@ -168,7 +188,9 @@ def _run(token: str, upload_path: str, work_dir: Path, cfg) -> None:
     store.set_phase(token, "final_cut", "Final cut")
     out_path = work_dir / "movie.mp4"
     try:
-        step10_assemble.assemble(clip_results, music_path, work_dir, out_path)
+        step10_assemble.assemble(
+            clip_results, music_path, work_dir, out_path, music_gain=cfg.music_volume
+        )
     except Exception as exc:
         raise _TerminalError(f"Final assembly failed: {exc}")
 
@@ -179,8 +201,9 @@ def _log_chosen_settings(token: str, cfg) -> None:
     """Record the effective per-job settings to the message log / log.txt."""
     bits = [
         f"shots={cfg.shot_count}x{cfg.shot_length_seconds}s",
+        f"target~{cfg.shot_count * cfg.shot_length_seconds}s",
         f"video={cfg.video_model}",
-        f"music={cfg.music_model}",
+        f"music={cfg.music_model}@{int(cfg.music_volume * 100)}%",
     ]
     if (cfg.style_guidance or "").strip():
         bits.append(f"style=\"{cfg.style_guidance.strip()}\"")
