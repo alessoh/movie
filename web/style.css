@@ -103,6 +103,57 @@ h1 {
 .pct { text-align: right; color: var(--muted); margin: 0; font-variant-numeric: tabular-nums; }
 .hint { color: var(--muted); font-size: .9rem; }
 
+/* Advanced settings */
+.advanced {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 14px;
+}
+.advanced > summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+}
+.advanced > summary::-webkit-details-marker { display: none; }
+.advanced > summary::before { content: "▸ "; color: var(--muted); }
+.advanced[open] > summary::before { content: "▾ "; }
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 4px 0 16px;
+}
+.settings-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: .88rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.settings-grid label.full { grid-column: 1 / -1; }
+.settings-grid input {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  background: #fff;
+  color: var(--ink);
+}
+.settings-grid input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+}
+.settings-grid small { font-weight: 400; color: var(--muted); font-size: .78rem; }
+@media (max-width: 520px) {
+  .settings-grid { grid-template-columns: 1fr; }
+}
+
 .log {
   list-style: none;
   padding: 0;

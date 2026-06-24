@@ -19,6 +19,38 @@ const errorView = $("error-view");
 let selectedFile = null;
 let token = null;
 
+// --- Prefill advanced settings from the server's non-secret defaults ------
+(async function loadDefaults() {
+  try {
+    const cfg = await (await fetch("/api/config")).json();
+    if ($("opt-shot-count")) $("opt-shot-count").placeholder = cfg.shot_count;
+    if ($("opt-shot-length")) $("opt-shot-length").placeholder = cfg.shot_length_seconds;
+    if ($("opt-music")) $("opt-music").placeholder = cfg.music_model;
+    if ($("opt-video")) $("opt-video").placeholder = cfg.video_model;
+    if ($("opt-voice") && cfg.tts_voice_id && cfg.tts_voice_id !== "narrator-default") {
+      $("opt-voice").placeholder = cfg.tts_voice_id;
+    }
+  } catch (_) {}
+})();
+
+// Collect only the fields the user actually filled in.
+function collectOptions() {
+  const opts = {};
+  const style = $("opt-style").value.trim();
+  const voice = $("opt-voice").value.trim();
+  const music = $("opt-music").value.trim();
+  const video = $("opt-video").value.trim();
+  const count = parseInt($("opt-shot-count").value, 10);
+  const length = parseInt($("opt-shot-length").value, 10);
+  if (style) opts.style_guidance = style;
+  if (voice) opts.tts_voice_id = voice;
+  if (music) opts.music_model = music;
+  if (video) opts.video_model = video;
+  if (!Number.isNaN(count)) opts.shot_count = count;
+  if (!Number.isNaN(length)) opts.shot_length_seconds = length;
+  return opts;
+}
+
 // --- File selection -------------------------------------------------------
 browseBtn.addEventListener("click", () => fileInput.click());
 dropzone.addEventListener("click", (e) => {
@@ -66,7 +98,11 @@ startBtn.addEventListener("click", async () => {
     if (!up.ok) throw new Error((await up.json()).detail || "Upload failed.");
     token = (await up.json()).token;
 
-    const st = await fetch(`/api/start/${token}`, { method: "POST" });
+    const st = await fetch(`/api/start/${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(collectOptions()),
+    });
     if (!st.ok) throw new Error((await st.json()).detail || "Could not start.");
 
     show(progressView);

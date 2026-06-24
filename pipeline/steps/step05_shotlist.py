@@ -21,26 +21,32 @@ _SYSTEM = (
 )
 
 
-def build_shot_list(llm: LLMProvider, beats: dict) -> dict:
-    raw = llm.complete(_SYSTEM, _prompt(beats), max_tokens=6000)
+def build_shot_list(llm: LLMProvider, beats: dict, cfg=None) -> dict:
+    cfg = cfg or settings
+    raw = llm.complete(_SYSTEM, _prompt(beats, cfg), max_tokens=6000)
     try:
         data = _parse_json(raw)
         validate_shot_list(data)
-        return _normalize(data)
+        return _normalize(data, cfg)
     except Exception:
         # One repair attempt with the error fed back in.
-        repair_prompt = _prompt(beats) + (
+        repair_prompt = _prompt(beats, cfg) + (
             "\n\nYour previous answer was invalid. Return ONLY valid JSON that "
             "exactly matches the schema, with every required field present."
         )
         raw2 = llm.complete(_SYSTEM, repair_prompt, max_tokens=6000)
         data = _parse_json(raw2)  # may raise -> terminal error upstream
         validate_shot_list(data)
-        return _normalize(data)
+        return _normalize(data, cfg)
 
 
-def _prompt(beats: dict) -> str:
-    shot_len = settings.shot_length_seconds
+def _prompt(beats: dict, cfg) -> str:
+    shot_len = cfg.shot_length_seconds
+    guidance = (cfg.style_guidance or "").strip()
+    guidance_line = (
+        f"- Apply this overall visual style to the style_prompt and EVERY shot's "
+        f"visual_prompt: {guidance}\n" if guidance else ""
+    )
     return f"""Turn these story beats into a shot list. One shot per beat.
 
 Beats:
@@ -71,7 +77,7 @@ Rules:
 - Every character_id referenced must exist in the characters array.
 - Keep 1-4 named characters total; reuse the same ids across shots.
 - narration is exactly one spoken sentence.
-"""
+{guidance_line}"""
 
 
 def validate_shot_list(data: dict) -> None:
@@ -101,10 +107,16 @@ def validate_shot_list(data: dict) -> None:
             raise ValueError("shot has empty visual_prompt")
 
 
-def _normalize(data: dict) -> dict:
+def _normalize(data: dict, cfg=None) -> dict:
     """Coerce types, fill defaults, fix indices and character references."""
+    cfg = cfg or settings
     char_ids = {c["id"] for c in data["characters"]}
-    shot_len = settings.shot_length_seconds
+    shot_len = cfg.shot_length_seconds
+    # Reinforce the user's style guidance in the global style prompt so anchors
+    # and clips both pick it up, even if the model under-applied it.
+    guidance = (cfg.style_guidance or "").strip()
+    if guidance:
+        data["style_prompt"] = f"{data.get('style_prompt', '').strip()} | {guidance}".strip(" |")
     shots = data["shots"]
     for i, sh in enumerate(shots, start=1):
         sh["index"] = i

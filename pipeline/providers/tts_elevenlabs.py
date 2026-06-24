@@ -21,15 +21,16 @@ _BASE = "https://api.elevenlabs.io/v1/text-to-speech"
 
 
 class ElevenLabsTTSProvider(TTSProvider):
-    def __init__(self) -> None:
-        if not settings.elevenlabs_api_key:
+    def __init__(self, cfg=None) -> None:
+        self.cfg = cfg or settings
+        if not self.cfg.elevenlabs_api_key:
             raise RuntimeError("ELEVENLABS_API_KEY is not set")
-        self.voice_id = settings.tts_voice_id
+        self.voice_id = self.cfg.tts_voice_id
 
     def synthesize(self, text: str, out_path: Path) -> Path:
         url = f"{_BASE}/{self.voice_id}"
         headers = {
-            "xi-api-key": settings.elevenlabs_api_key,
+            "xi-api-key": self.cfg.elevenlabs_api_key,
             "content-type": "application/json",
             "accept": "audio/mpeg",
         }

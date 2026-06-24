@@ -12,8 +12,10 @@ threading without rewriting any step.
 from __future__ import annotations
 
 import traceback
+from dataclasses import replace
 from pathlib import Path
 
+from config import settings
 from pipeline.providers import get_providers
 from pipeline.state import store
 from pipeline.steps import (
@@ -35,8 +37,9 @@ def run_job(token: str) -> None:
     if not session:
         return
     work_dir = Path(session.work_dir)
+    cfg = _job_settings(session.options or {})
     try:
-        _run(token, session.upload_path, work_dir)
+        _run(token, session.upload_path, work_dir, cfg)
     except _TerminalError as exc:
         store.fail(token, str(exc))
     except Exception as exc:  # noqa: BLE001 - last-resort safety net
@@ -49,8 +52,42 @@ class _TerminalError(Exception):
     """Raised when the job cannot continue and must stop with a clear error."""
 
 
-def _run(token: str, upload_path: str, work_dir: Path) -> None:
-    providers = get_providers()
+def _job_settings(options: dict):
+    """Return an effective ``Settings`` for this job: the global settings with
+    sanitized, bounded per-job overrides applied.  Unknown/blank options are
+    ignored so a job always has safe values."""
+    overrides: dict = {}
+
+    def _str(key, max_len=200):
+        val = options.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()[:max_len]
+        return None
+
+    def _int(key, lo, hi):
+        val = options.get(key)
+        try:
+            return max(lo, min(hi, int(val)))
+        except (TypeError, ValueError):
+            return None
+
+    for key, val in (
+        ("video_model", _str("video_model")),
+        ("music_model", _str("music_model")),
+        ("tts_voice_id", _str("tts_voice_id", 120)),
+        ("style_guidance", _str("style_guidance", 300)),
+        ("shot_count", _int("shot_count", 6, 20)),
+        ("shot_length_seconds", _int("shot_length_seconds", 4, 10)),
+    ):
+        if val is not None:
+            overrides[key] = val
+
+    return replace(settings, **overrides) if overrides else settings
+
+
+def _run(token: str, upload_path: str, work_dir: Path, cfg) -> None:
+    providers = get_providers(cfg)
+    _log_chosen_settings(token, cfg)
 
     # --- Step 3: text extraction -----------------------------------------
     store.set_phase(token, "reading", "Reading your novel")
@@ -62,7 +99,7 @@ def _run(token: str, upload_path: str, work_dir: Path) -> None:
     # --- Step 4: condensation --------------------------------------------
     store.set_phase(token, "shaping", "Shaping a two-minute story")
     try:
-        beats = step04_condense.condense(providers.llm, story_text)
+        beats = step04_condense.condense(providers.llm, story_text, cfg)
     except Exception as exc:
         # Language-model structure failed: stop before any paid video work.
         raise _TerminalError(f"Could not condense the story: {exc}")
@@ -70,7 +107,7 @@ def _run(token: str, upload_path: str, work_dir: Path) -> None:
     # --- Step 5: shot list -----------------------------------------------
     store.set_phase(token, "planning", "Planning the shots")
     try:
-        shot_list = step05_shotlist.build_shot_list(providers.llm, beats)
+        shot_list = step05_shotlist.build_shot_list(providers.llm, beats, cfg)
     except Exception as exc:
         # Malformed plan after one repair attempt -> terminal, money unspent.
         raise _TerminalError(f"Could not build a valid shot list: {exc}")
@@ -136,6 +173,18 @@ def _run(token: str, upload_path: str, work_dir: Path) -> None:
         raise _TerminalError(f"Final assembly failed: {exc}")
 
     store.finish(token, str(out_path))
+
+
+def _log_chosen_settings(token: str, cfg) -> None:
+    """Record the effective per-job settings to the message log / log.txt."""
+    bits = [
+        f"shots={cfg.shot_count}x{cfg.shot_length_seconds}s",
+        f"video={cfg.video_model}",
+        f"music={cfg.music_model}",
+    ]
+    if (cfg.style_guidance or "").strip():
+        bits.append(f"style=\"{cfg.style_guidance.strip()}\"")
+    store.add_message(token, "Settings: " + ", ".join(bits))
 
 
 def _save_json(path: Path, data: dict) -> None:

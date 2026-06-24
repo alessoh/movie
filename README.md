@@ -172,6 +172,31 @@ All configuration lives in `.env` (copy from `.env.example`). Keys are read
 | `RUN_MODE` | `real` or `mock` |
 | `PORT` / `HOST` | Where the server listens |
 
+These are the operator-wide **defaults**. A visitor can override several of
+them per movie via the **Advanced settings** panel (below).
+
+---
+
+## Per-job controls (Advanced settings)
+
+Before pressing **Make my movie**, the visitor can open **Advanced settings**
+to tune one movie without touching `.env`:
+
+- **Visual style** — free-text direction woven into the style + every shot
+  prompt (e.g. "moody noir, neon-lit, watercolor").
+- **Number of shots** (6–20) and **seconds per shot** (4–10) — the movie shape.
+- **Narrator voice ID** — override `TTS_VOICE_ID` for this movie.
+- **Music model** and **video model** — swap models per movie.
+
+Blanks fall back to the operator defaults, and the server bounds the numeric
+values. No keys are ever involved — the UI pre-fills only non-secret defaults
+from `GET /api/config`, and overrides ride along with `POST /api/start`.
+
+Every run also writes a timestamped **`storage/sessions/<token>/log.txt`** with
+the chosen settings and every progress/degradation message, so you have a
+persistent record after the movie finishes (it's deleted with the session on
+the TTL sweep).
+
 ---
 
 ## Graceful degradation

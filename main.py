@@ -2,8 +2,9 @@
 
 Endpoints
   GET  /                      single light-mode page
+  GET  /api/config            non-secret defaults for the UI (never keys)
   POST /api/upload            create session, save file, enforce quota
-  POST /api/start/{token}     kick off the background build job
+  POST /api/start/{token}     kick off the background build job (optional options body)
   GET  /api/status/{token}    current session status as JSON (polling fallback)
   GET  /api/stream/{token}    server-sent events stream of status updates
   GET  /api/movie/{token}     stream the finished MP4 (inline / download)
@@ -26,12 +27,27 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from config import WEB_DIR, settings
 from pipeline.orchestrator import run_job
 from pipeline.state import store
 
 app = FastAPI(title="novel-to-movie")
+
+
+class StartOptions(BaseModel):
+    """Optional per-job control settings the visitor may set before starting.
+    All fields are optional; blanks fall back to the operator's defaults, and
+    the orchestrator bounds the numeric ones. No secrets here -- keys never
+    come from the client."""
+
+    style_guidance: str | None = None
+    video_model: str | None = None
+    music_model: str | None = None
+    tts_voice_id: str | None = None
+    shot_count: int | None = None
+    shot_length_seconds: int | None = None
 
 ALLOWED_SUFFIXES = {".txt", ".md", ".pdf", ".docx", ".doc"}
 MAX_UPLOAD_BYTES = settings.max_upload_mb * 1024 * 1024
@@ -96,8 +112,23 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
     return JSONResponse({"token": session.token})
 
 
+@app.get("/api/config")
+async def get_config() -> JSONResponse:
+    """Non-secret defaults so the UI can pre-fill the advanced settings.
+    NEVER includes API keys."""
+    return JSONResponse(
+        {
+            "video_model": settings.video_model,
+            "music_model": settings.music_model,
+            "tts_voice_id": settings.tts_voice_id,
+            "shot_count": settings.shot_count,
+            "shot_length_seconds": settings.shot_length_seconds,
+        }
+    )
+
+
 @app.post("/api/start/{token}")
-async def start(token: str) -> JSONResponse:
+async def start(token: str, options: StartOptions | None = None) -> JSONResponse:
     session = store.get(token)
     if not session:
         raise HTTPException(status_code=404, detail="Unknown session.")
@@ -112,6 +143,10 @@ async def start(token: str) -> JSONResponse:
         )
     if session.status not in ("queued",):
         return JSONResponse({"token": token, "status": session.status})
+
+    # Stash sanitized-on-use per-job options (the orchestrator bounds them).
+    if options is not None:
+        session.options = options.model_dump(exclude_none=True)
 
     # Run the build on a background thread (FastAPI process, in-memory job).
     store.set_phase(token, "reading", "Starting up", progress=2)

@@ -23,9 +23,14 @@ class ProviderBundle:
     music: MusicProvider
 
 
-def get_providers() -> ProviderBundle:
-    """Construct the provider bundle for the current run mode."""
-    if settings.is_mock:
+def get_providers(cfg=None) -> ProviderBundle:
+    """Construct the provider bundle for the current run mode.
+
+    ``cfg`` is an effective ``Settings`` for this job (global settings with any
+    per-job overrides applied).  Defaults to the global ``settings``.
+    """
+    cfg = cfg or settings
+    if cfg.is_mock:
         from .mock import (
             MockImageProvider,
             MockLLMProvider,
@@ -48,15 +53,15 @@ def get_providers() -> ProviderBundle:
     from .tts_elevenlabs import ElevenLabsTTSProvider
     from .video_aggregator import AggregatorVideoProvider
 
-    llm = _build_llm(settings.llm_provider)
-    image = AggregatorImageProvider()
-    video = AggregatorVideoProvider()
-    tts = ElevenLabsTTSProvider()
-    music = AggregatorMusicProvider()
+    llm = _build_llm(cfg.llm_provider, cfg)
+    image = AggregatorImageProvider(cfg)
+    video = AggregatorVideoProvider(cfg)
+    tts = ElevenLabsTTSProvider(cfg)
+    music = AggregatorMusicProvider(cfg)
     return ProviderBundle(llm=llm, image=image, video=video, tts=tts, music=music)
 
 
-def _build_llm(provider: str) -> LLMProvider:
+def _build_llm(provider: str, cfg) -> LLMProvider:
     """Select the language-model adapter from ``LLM_PROVIDER``.
 
     Adding a new LLM vendor is just a new adapter implementing ``LLMProvider``
@@ -66,15 +71,15 @@ def _build_llm(provider: str) -> LLMProvider:
     if name == "anthropic":
         from .llm_anthropic import AnthropicLLMProvider
 
-        return AnthropicLLMProvider()
+        return AnthropicLLMProvider(cfg)
     if name == "gemini":
         from .llm_gemini import GeminiLLMProvider
 
-        return GeminiLLMProvider()
+        return GeminiLLMProvider(cfg)
     if name == "openai":
         from .llm_openai import OpenAILLMProvider
 
-        return OpenAILLMProvider()
+        return OpenAILLMProvider(cfg)
     raise RuntimeError(
         f"Unknown LLM_PROVIDER '{provider}'. Supported: anthropic, gemini, openai."
     )

@@ -15,8 +15,9 @@ from .base import ImageProvider
 
 
 class AggregatorImageProvider(ImageProvider):
-    def __init__(self) -> None:
-        self.model = settings.image_model
+    def __init__(self, cfg=None) -> None:
+        self.cfg = cfg or settings
+        self.model = self.cfg.image_model
 
     def generate_image(self, prompt: str, out_path: Path) -> Path:
         payload = {

@@ -69,6 +69,8 @@ class Settings:
     # this many seconds and loop the track to fill the movie. 0 = no cap.
     music_max_seconds: int = field(default_factory=lambda: _get_int("MUSIC_MAX_SECONDS", 47))
     tts_voice_id: str = field(default_factory=lambda: _get("TTS_VOICE_ID", "narrator-default"))
+    # Per-job only (never from env): extra visual direction appended to prompts.
+    style_guidance: str = ""
 
     # Movie shape
     target_duration_seconds: int = field(

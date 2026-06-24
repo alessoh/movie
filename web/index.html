@@ -26,6 +26,49 @@
           <p id="file-name" class="file-name"></p>
         </div>
       </div>
+
+      <details id="advanced" class="advanced">
+        <summary>Advanced settings (optional)</summary>
+        <div class="settings-grid">
+          <label class="full">
+            <span>Visual style</span>
+            <input type="text" id="opt-style" maxlength="300"
+                   placeholder="e.g. moody noir, neon-lit, watercolor, 1980s film grain" />
+            <small>Steers the look of every shot.</small>
+          </label>
+
+          <label>
+            <span>Number of shots</span>
+            <input type="number" id="opt-shot-count" min="6" max="20" step="1" />
+            <small>6–20. More shots = denser story.</small>
+          </label>
+
+          <label>
+            <span>Seconds per shot</span>
+            <input type="number" id="opt-shot-length" min="4" max="10" step="1" />
+            <small>4–10 seconds.</small>
+          </label>
+
+          <label>
+            <span>Narrator voice ID</span>
+            <input type="text" id="opt-voice" maxlength="120" placeholder="ElevenLabs voice ID" />
+            <small>Blank = default voice.</small>
+          </label>
+
+          <label>
+            <span>Music model / mood</span>
+            <input type="text" id="opt-music" maxlength="200" placeholder="music model id" />
+            <small>Background score model.</small>
+          </label>
+
+          <label class="full">
+            <span>Video model</span>
+            <input type="text" id="opt-video" maxlength="200" placeholder="image-to-video model id" />
+            <small>Changes how closely shots follow the story. Blank = default.</small>
+          </label>
+        </div>
+      </details>
+
       <button id="start-btn" class="primary" disabled>Make my movie</button>
       <p id="upload-error" class="error" role="alert"></p>
     </section>

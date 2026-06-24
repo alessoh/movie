@@ -15,8 +15,9 @@ from .base import MusicProvider
 
 
 class AggregatorMusicProvider(MusicProvider):
-    def __init__(self) -> None:
-        self.model = settings.music_model
+    def __init__(self, cfg=None) -> None:
+        self.cfg = cfg or settings
+        self.model = self.cfg.music_model
 
     def generate_music(self, prompt: str, duration_seconds: int, out_path: Path) -> Path:
         payload = {

@@ -48,6 +48,7 @@ class Session:
     error: Optional[str] = None
     created_at: float = field(default_factory=time.time)
     movies_made: int = 0  # quota counter
+    options: dict = field(default_factory=dict)  # per-job control overrides
 
     def public_dict(self) -> dict:
         """Client-safe view of the session (never includes file system internals
@@ -164,6 +165,7 @@ class StateStore:
             s.progress = max(0, min(100, progress))
             if message:
                 s.messages.append(message)
+                self._write_log(s, message)
             self._persist(s)
 
     def add_message(self, token: str, message: str, progress: Optional[int] = None) -> None:
@@ -172,6 +174,7 @@ class StateStore:
             if not s:
                 return
             s.messages.append(message)
+            self._write_log(s, message)
             if progress is not None:
                 s.progress = max(0, min(100, progress))
             self._persist(s)
@@ -186,6 +189,7 @@ class StateStore:
             s.movie_path = movie_path
             s.movies_made += 1
             s.messages.append("Your movie is ready.")
+            self._write_log(s, "Your movie is ready.")
             self._persist(s)
 
     def fail(self, token: str, error: str) -> None:
@@ -195,8 +199,23 @@ class StateStore:
                 return
             s.status = "error"
             s.error = error
-            s.messages.append(f"Terminal error: {error}")
+            msg = f"Terminal error: {error}"
+            s.messages.append(msg)
+            self._write_log(s, msg)
             self._persist(s)
+
+    @staticmethod
+    def _write_log(s: Session, message: str) -> None:
+        """Append a timestamped line to the session's log.txt.  Best-effort:
+        logging must never break the pipeline."""
+        if not s.work_dir:
+            return
+        try:
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            with open(Path(s.work_dir) / "log.txt", "a", encoding="utf-8") as fh:
+                fh.write(f"[{stamp}] {message}\n")
+        except Exception:
+            pass
 
 
 def settings_storage_dir() -> Path:

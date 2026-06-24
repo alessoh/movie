@@ -21,16 +21,17 @@ _BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
 class GeminiLLMProvider(LLMProvider):
-    def __init__(self) -> None:
-        if not settings.gemini_api_key:
+    def __init__(self, cfg=None) -> None:
+        self.cfg = cfg or settings
+        if not self.cfg.gemini_api_key:
             raise RuntimeError("GEMINI_API_KEY is not set")
-        self.model = settings.llm_model
+        self.model = self.cfg.llm_model
 
     def complete(self, system: str, prompt: str, max_tokens: int = 4000) -> str:
         url = f"{_BASE}/{self.model}:generateContent"
         headers = {
             "content-type": "application/json",
-            "x-goog-api-key": settings.gemini_api_key,
+            "x-goog-api-key": self.cfg.gemini_api_key,
         }
         body = {
             "system_instruction": {"parts": [{"text": system}]},

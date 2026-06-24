@@ -19,8 +19,9 @@ from .base import VideoProvider
 
 
 class AggregatorVideoProvider(VideoProvider):
-    def __init__(self) -> None:
-        self.model = settings.video_model
+    def __init__(self, cfg=None) -> None:
+        self.cfg = cfg or settings
+        self.model = self.cfg.video_model
 
     def generate_clip(self, prompt, anchor_image, duration_seconds, out_path) -> Path:
         image_url: Optional[str] = None

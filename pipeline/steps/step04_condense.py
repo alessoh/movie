@@ -19,13 +19,18 @@ _SYSTEM = (
 )
 
 
-def condense(llm: LLMProvider, story_text: str) -> dict:
-    count = settings.shot_count
+def condense(llm: LLMProvider, story_text: str, cfg=None) -> dict:
+    cfg = cfg or settings
+    count = cfg.shot_count
+    guidance = (cfg.style_guidance or "").strip()
+    guidance_line = (
+        f"\nKeep this overall tone/style in mind: {guidance}\n" if guidance else ""
+    )
     prompt = f"""Compress the following novel into a micro screenplay of exactly {count} beats.
 
 Each beat is a single moment the audience will SEE on screen, in chronological
 order, that together tell the whole story arc from setup to resolution.
-
+{guidance_line}
 Return ONLY this JSON shape:
 {{
   "title": "short evocative film title",

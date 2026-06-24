@@ -19,14 +19,15 @@ _API_VERSION = "2023-06-01"
 
 
 class AnthropicLLMProvider(LLMProvider):
-    def __init__(self) -> None:
-        if not settings.anthropic_api_key:
+    def __init__(self, cfg=None) -> None:
+        self.cfg = cfg or settings
+        if not self.cfg.anthropic_api_key:
             raise RuntimeError("ANTHROPIC_API_KEY is not set")
-        self.model = settings.llm_model
+        self.model = self.cfg.llm_model
 
     def complete(self, system: str, prompt: str, max_tokens: int = 4000) -> str:
         headers = {
-            "x-api-key": settings.anthropic_api_key,
+            "x-api-key": self.cfg.anthropic_api_key,
             "anthropic-version": _API_VERSION,
             "content-type": "application/json",
         }

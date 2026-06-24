@@ -22,17 +22,18 @@ from .base import LLMProvider
 
 
 class OpenAILLMProvider(LLMProvider):
-    def __init__(self) -> None:
-        if not settings.openai_api_key:
+    def __init__(self, cfg=None) -> None:
+        self.cfg = cfg or settings
+        if not self.cfg.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not set")
-        self.model = settings.llm_model
+        self.model = self.cfg.llm_model
         self.base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 
     def complete(self, system: str, prompt: str, max_tokens: int = 4000) -> str:
         url = f"{self.base_url}/chat/completions"
         headers = {
             "content-type": "application/json",
-            "authorization": f"Bearer {settings.openai_api_key}",
+            "authorization": f"Bearer {self.cfg.openai_api_key}",
         }
         body = {
             "model": self.model,
