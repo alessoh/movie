@@ -12,8 +12,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-import httpx
-
 from config import settings
 
 from . import _aggregator_client as agg
@@ -27,7 +25,7 @@ class AggregatorVideoProvider(VideoProvider):
     def generate_clip(self, prompt, anchor_image, duration_seconds, out_path) -> Path:
         image_url: Optional[str] = None
         if anchor_image is not None and Path(anchor_image).exists():
-            image_url = _upload_to_fal(Path(anchor_image))
+            image_url = _image_reference(Path(anchor_image))
 
         payload = {"prompt": prompt}
         if image_url:
@@ -42,34 +40,20 @@ class AggregatorVideoProvider(VideoProvider):
         return agg.download(url, out_path)
 
 
-def _upload_to_fal(path: Path) -> str:
-    """Upload a local file to fal storage and return its public URL.
+def _image_reference(path: Path) -> str:
+    """Return a value usable for an ``image_url`` input field.
 
-    OPERATOR VERIFY: fal exposes a storage upload endpoint; the official
-    ``fal-client`` SDK wraps it as ``fal_client.upload_file``.  This minimal
-    HTTP version requests an upload target then PUTs the bytes.  If your
-    aggregator differs (e.g. Replicate accepts data URLs directly), replace
-    this helper accordingly.
+    Both fal.ai and Replicate accept a base64 ``data:`` URI for image inputs
+    (this is what ``fal_client.encode_file`` produces), so we inline the anchor
+    directly. This avoids any dependency on a separate file-upload endpoint.
+
+    OPERATOR VERIFY: a few models require a hosted https URL rather than a data
+    URI. If yours does, upload the file to your own storage (or fal storage via
+    the official ``fal-client`` SDK) and return that URL here instead.
     """
-    if settings.aggregator == "replicate":
-        # Replicate accepts data: URIs for image inputs.
-        import base64
-        import mimetypes
+    import base64
+    import mimetypes
 
-        mime = mimetypes.guess_type(str(path))[0] or "image/png"
-        b64 = base64.b64encode(path.read_bytes()).decode()
-        return f"data:{mime};base64,{b64}"
-
-    headers = {"Authorization": f"Key {settings.aggregator_api_key}"}
-    with httpx.Client(timeout=120) as client:
-        init = client.post(
-            "https://rest.alpha.fal.ai/storage/upload/initiate",
-            headers=headers,
-            json={"file_name": path.name, "content_type": "image/png"},
-        )
-        init.raise_for_status()
-        info = init.json()
-        upload_url = info["upload_url"]
-        put = client.put(upload_url, content=path.read_bytes(), headers={"Content-Type": "image/png"})
-        put.raise_for_status()
-        return info["file_url"]
+    mime = mimetypes.guess_type(str(path))[0] or "image/png"
+    b64 = base64.b64encode(path.read_bytes()).decode()
+    return f"data:{mime};base64,{b64}"

@@ -40,7 +40,7 @@ def generate_clips(
             progress(n, total, f"Filming shot {n} of {total}")
         out_path = clips_dir / f"shot_{shot['index']:02d}.mp4"
         anchor = anchor_for_shot(shot, anchors)
-        clip = _generate_with_retry(video, shot, anchor, out_path)
+        clip, last_error = _generate_with_retry(video, shot, anchor, out_path)
 
         if clip is not None:
             results.append(
@@ -48,7 +48,9 @@ def generate_clips(
             )
             continue
 
-        # All retries exhausted -> apply fallback.
+        # All retries exhausted -> surface the real reason, then apply fallback.
+        if progress and last_error:
+            progress(n, total, f"Shot {n} clip failed: {last_error}")
         fallback = settings.failed_shot_fallback.lower()
         if fallback == "drop_shot":
             if progress:
@@ -68,19 +70,38 @@ def generate_clips(
 
 def _generate_with_retry(
     video: VideoProvider, shot: dict, anchor: Optional[Path], out_path: Path
-) -> Optional[Path]:
+) -> tuple[Optional[Path], Optional[str]]:
+    """Return (clip_path, last_error). ``last_error`` is a short reason string
+    when all attempts fail, so the orchestrator can log why."""
     attempts = settings.max_retries_per_shot + 1
     duration = int(shot["duration_seconds"])
+    last_error: Optional[str] = None
     for attempt in range(attempts):
         try:
             video.generate_clip(shot["visual_prompt"], anchor, duration, out_path)
             if out_path.exists() and out_path.stat().st_size > 0 and ff.probe_duration(out_path) > 0.1:
-                return out_path
-        except Exception:
-            pass
+                return out_path, None
+            last_error = "provider returned an empty or unreadable clip"
+        except Exception as exc:  # noqa: BLE001 - captured and surfaced, not hidden
+            last_error = _short_error(exc)
         if attempt < attempts - 1:
             time.sleep(2 * (attempt + 1))  # short linear backoff
-    return None
+    return None, last_error
+
+
+def _short_error(exc: Exception) -> str:
+    """Compact, human-readable one-liner from an exception (incl. HTTP bodies)."""
+    import httpx
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        body = ""
+        try:
+            body = exc.response.text[:300]
+        except Exception:
+            pass
+        return f"HTTP {exc.response.status_code} from provider: {body}"
+    msg = str(exc).strip() or exc.__class__.__name__
+    return f"{exc.__class__.__name__}: {msg}"[:300]
 
 
 def _hold_still(shot: dict, anchor: Optional[Path], out_path: Path) -> Optional[Path]:
