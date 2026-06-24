@@ -185,6 +185,8 @@ def _mix_music_and_normalize(concat_path: Path, music_path: Optional[Path], out:
         return
 
     # Duck the music beneath speech via sidechain compression keyed on narration.
+    # -stream_loop -1 loops the (possibly short) music track; -shortest then
+    # trims the result to the video length so it covers the whole film.
     filter_complex = (
         f"[0:a]asplit=2[na][key];"
         f"[1:a]volume={MUSIC_GAIN},aresample={ff.SAMPLE_RATE}[mus];"
@@ -194,7 +196,7 @@ def _mix_music_and_normalize(concat_path: Path, music_path: Optional[Path], out:
     ff.run_ffmpeg(
         [
             "-i", str(concat_path),
-            "-i", str(music_path),
+            "-stream_loop", "-1", "-i", str(music_path),
             "-filter_complex", filter_complex,
             "-map", "0:v", "-map", "[a]",
             "-c:v", "copy", "-c:a", "aac", "-ar", str(ff.SAMPLE_RATE),

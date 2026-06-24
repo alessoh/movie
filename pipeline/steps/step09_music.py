@@ -1,8 +1,10 @@
 """Step 9 - Music bed.
 
-Generate one background track roughly the length of the movie whose mood
-matches the logline.  If the music fails after retries, the film proceeds with
-no music (section 9).  Returns a Path or None.
+Generate one background track whose mood matches the logline.  Many music
+models cap clip length (Stable Audio ~47s), so we request at most
+``settings.music_max_seconds`` and let the assembly step loop the track to fill
+the movie.  If the music fails after retries, the film proceeds with no music
+(section 9).  Returns a Path or None.
 """
 from __future__ import annotations
 
@@ -28,7 +30,10 @@ def generate_music(
         f"Instrumental cinematic score, no vocals, that underscores this film: "
         f"{logline}. Mood and palette: {style}."
     )
-    duration = max(30, int(total_duration) + 4)
+    requested = max(30, int(total_duration) + 4)
+    # Cap to the model's max clip length; assembly loops it to cover the film.
+    cap = settings.music_max_seconds
+    duration = min(requested, cap) if cap and cap > 0 else requested
 
     attempts = settings.max_retries_per_shot + 1
     last_error = None

@@ -65,6 +65,9 @@ class Settings:
         )
     )
     music_model: str = field(default_factory=lambda: _get("MUSIC_MODEL", "fal-ai/stable-audio"))
+    # Many music models cap clip length (Stable Audio ~47s). We request at most
+    # this many seconds and loop the track to fill the movie. 0 = no cap.
+    music_max_seconds: int = field(default_factory=lambda: _get_int("MUSIC_MAX_SECONDS", 47))
     tts_voice_id: str = field(default_factory=lambda: _get("TTS_VOICE_ID", "narrator-default"))
 
     # Movie shape
