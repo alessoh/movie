@@ -19,6 +19,27 @@ const errorView = $("error-view");
 let selectedFile = null;
 let token = null;
 
+// Format seconds as m:ss for the movie-length badge.
+function fmtDuration(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// Live readouts for the range sliders.
+const durationSlider = $("opt-duration");
+const musicVolSlider = $("opt-music-vol");
+if (durationSlider) {
+  const sync = () => ($("out-duration").textContent = fmtDuration(parseInt(durationSlider.value, 10)));
+  durationSlider.addEventListener("input", sync);
+  sync();
+}
+if (musicVolSlider) {
+  const sync = () => ($("out-music-vol").textContent = `${musicVolSlider.value}%`);
+  musicVolSlider.addEventListener("input", sync);
+  sync();
+}
+
 // --- Prefill advanced settings from the server's non-secret defaults ------
 (async function loadDefaults() {
   try {
@@ -29,6 +50,14 @@ let token = null;
     if ($("opt-video")) $("opt-video").placeholder = cfg.video_model;
     if ($("opt-voice") && cfg.tts_voice_id && cfg.tts_voice_id !== "narrator-default") {
       $("opt-voice").placeholder = cfg.tts_voice_id;
+    }
+    if (durationSlider && cfg.target_duration_seconds) {
+      durationSlider.value = cfg.target_duration_seconds;
+      durationSlider.dispatchEvent(new Event("input"));
+    }
+    if (musicVolSlider && typeof cfg.music_volume === "number") {
+      musicVolSlider.value = Math.round(cfg.music_volume * 100);
+      musicVolSlider.dispatchEvent(new Event("input"));
     }
   } catch (_) {}
 })();
@@ -48,6 +77,8 @@ function collectOptions() {
   if (video) opts.video_model = video;
   if (!Number.isNaN(count)) opts.shot_count = count;
   if (!Number.isNaN(length)) opts.shot_length_seconds = length;
+  if (durationSlider) opts.target_duration_seconds = parseInt(durationSlider.value, 10);
+  if (musicVolSlider) opts.music_volume = parseInt(musicVolSlider.value, 10) / 100;
   return opts;
 }
 

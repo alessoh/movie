@@ -39,6 +39,16 @@ def _get_int(name: str, default: int) -> int:
         return default
 
 
+def _get_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 @dataclass
 class Settings:
     # Keys (server-side only)
@@ -68,6 +78,9 @@ class Settings:
     # Many music models cap clip length (Stable Audio ~47s). We request at most
     # this many seconds and loop the track to fill the movie. 0 = no cap.
     music_max_seconds: int = field(default_factory=lambda: _get_int("MUSIC_MAX_SECONDS", 47))
+    # Loudness of the ducked music bed under the narration, as a gain multiplier
+    # (0.0 = silent, 1.0 = full). The visitor can override this per job.
+    music_volume: float = field(default_factory=lambda: _get_float("MUSIC_VOLUME", 0.28))
     tts_voice_id: str = field(default_factory=lambda: _get("TTS_VOICE_ID", "narrator-default"))
     # Per-job only (never from env): extra visual direction appended to prompts.
     style_guidance: str = ""
