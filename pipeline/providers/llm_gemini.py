@@ -44,7 +44,15 @@ class GeminiLLMProvider(LLMProvider):
         }
         with httpx.Client(timeout=120) as client:
             resp = client.post(url, headers=headers, json=body)
-            resp.raise_for_status()
+            if resp.status_code >= 400:
+                # Surface Google's actual explanation (e.g. "API key not valid",
+                # "model not found") instead of a bare status code.
+                detail = ""
+                try:
+                    detail = resp.json().get("error", {}).get("message", "")
+                except Exception:
+                    detail = resp.text[:300]
+                raise RuntimeError(f"Gemini HTTP {resp.status_code}: {detail}")
             data = resp.json()
 
         # Response: {"candidates": [{"content": {"parts": [{"text": "..."}]}}]}
